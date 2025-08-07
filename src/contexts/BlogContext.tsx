@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { Blog, BlogState } from '../types';
 import { useAuth } from './AuthContext';
-import { supabase } from '../lib/supabase';
+import { getUserBlogs, saveBlog, deleteBlog as deleteStoredBlog, generateId } from '../lib/localStorage';
 
 interface BlogContextType extends BlogState {
   createBlog: (blog: Omit<Blog, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
@@ -32,7 +32,7 @@ const blogReducer = (state: BlogState, action: BlogAction): BlogState => {
         ...state,
         blogs: state.blogs.map(blog =>
           blog.id === action.payload.id
-            ? { ...blog, ...action.payload.blog }
+            ? { ...blog, ...action.payload.blog, updatedAt: new Date().toISOString() }
             : blog
         )
       };
@@ -50,18 +50,6 @@ const blogReducer = (state: BlogState, action: BlogAction): BlogState => {
   }
 };
 
-const mapDatabaseBlog = (dbBlog: any): Blog => ({
-  id: dbBlog.id,
-  title: dbBlog.title,
-  content: dbBlog.content,
-  excerpt: dbBlog.excerpt || '',
-  heroImage: dbBlog.hero_image,
-  userId: dbBlog.user_id,
-  createdAt: dbBlog.created_at,
-  updatedAt: dbBlog.updated_at,
-  tags: dbBlog.tags || []
-});
-
 export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const [state, dispatch] = useReducer(blogReducer, {
@@ -71,29 +59,18 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const fetchUserBlogs = async () => {
-    if (!user) return;
+    if (!user) {
+      dispatch({ type: 'SET_BLOGS', payload: [] });
+      return;
+    }
 
     dispatch({ type: 'SET_LOADING', payload: true });
-
-    try {
-      const { data, error } = await supabase
-        .from('blogs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching blogs:', error);
-        dispatch({ type: 'SET_BLOGS', payload: [] });
-        return;
-      }
-
-      const blogs = data.map(mapDatabaseBlog);
-      dispatch({ type: 'SET_BLOGS', payload: blogs });
-    } catch (error) {
-      console.error('Error fetching blogs:', error);
-      dispatch({ type: 'SET_BLOGS', payload: [] });
-    }
+    
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const userBlogs = getUserBlogs(user.id);
+    dispatch({ type: 'SET_BLOGS', payload: userBlogs });
   };
 
   useEffect(() => {
@@ -107,26 +84,20 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const createBlog = async (blogData: Omit<Blog, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<boolean> => {
     if (!user) return false;
 
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const newBlog: Blog = {
+      id: generateId(),
+      ...blogData,
+      userId: user.id,
+      author: user,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
     try {
-      const { data, error } = await supabase
-        .from('blogs')
-        .insert({
-          title: blogData.title,
-          content: blogData.content,
-          excerpt: blogData.excerpt,
-          hero_image: blogData.heroImage,
-          tags: blogData.tags,
-          user_id: user.id
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating blog:', error);
-        return false;
-      }
-
-      const newBlog = mapDatabaseBlog(data);
+      saveBlog(newBlog);
       dispatch({ type: 'ADD_BLOG', payload: newBlog });
       return true;
     } catch (error) {
@@ -138,25 +109,20 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateBlog = async (id: string, blogData: Partial<Blog>): Promise<boolean> => {
     if (!user) return false;
 
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const existingBlog = state.blogs.find(blog => blog.id === id && blog.userId === user.id);
+    if (!existingBlog) return false;
+
+    const updatedBlog: Blog = {
+      ...existingBlog,
+      ...blogData,
+      updatedAt: new Date().toISOString()
+    };
+
     try {
-      const updateData: any = {};
-      if (blogData.title !== undefined) updateData.title = blogData.title;
-      if (blogData.content !== undefined) updateData.content = blogData.content;
-      if (blogData.excerpt !== undefined) updateData.excerpt = blogData.excerpt;
-      if (blogData.heroImage !== undefined) updateData.hero_image = blogData.heroImage;
-      if (blogData.tags !== undefined) updateData.tags = blogData.tags;
-
-      const { error } = await supabase
-        .from('blogs')
-        .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error updating blog:', error);
-        return false;
-      }
-
+      saveBlog(updatedBlog);
       dispatch({ type: 'UPDATE_BLOG', payload: { id, blog: blogData } });
       return true;
     } catch (error) {
@@ -168,20 +134,15 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deleteBlog = async (id: string): Promise<boolean> => {
     if (!user) return false;
 
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     try {
-      const { error } = await supabase
-        .from('blogs')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', user.id);
-
-      if (error) {
-        console.error('Error deleting blog:', error);
-        return false;
+      const success = deleteStoredBlog(id, user.id);
+      if (success) {
+        dispatch({ type: 'DELETE_BLOG', payload: id });
       }
-
-      dispatch({ type: 'DELETE_BLOG', payload: id });
-      return true;
+      return success;
     } catch (error) {
       console.error('Error deleting blog:', error);
       return false;

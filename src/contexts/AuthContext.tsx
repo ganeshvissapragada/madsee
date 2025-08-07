@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { User, AuthState } from '../types';
-import { supabase } from '../lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { 
+  StoredUser, 
+  findUserByEmail, 
+  saveUser, 
+  getCurrentUser, 
+  setCurrentUser, 
+  generateId 
+} from '../lib/localStorage';
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<boolean>;
@@ -44,19 +50,13 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return { 
         ...state, 
         user: action.payload, 
-        isAuthenticated: true 
+        isAuthenticated: true,
+        isLoading: false 
       };
     default:
       return state;
   }
 };
-
-const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
-  id: supabaseUser.id,
-  email: supabaseUser.email || '',
-  username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || 'User',
-  avatar: supabaseUser.user_metadata?.avatar_url || `https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150`
-});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, {
@@ -66,96 +66,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        dispatch({ type: 'SET_USER', payload: mapSupabaseUser(session.user) });
-      }
-      dispatch({ type: 'LOGIN_FAILURE' }); // This will set isLoading to false
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          dispatch({ type: 'SET_USER', payload: mapSupabaseUser(session.user) });
-        } else {
-          dispatch({ type: 'LOGOUT' });
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
+    // Check for existing user session
+    const user = getCurrentUser();
+    if (user) {
+      dispatch({ type: 'SET_USER', payload: user });
+    } else {
+      dispatch({ type: 'LOGIN_FAILURE' });
+    }
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     dispatch({ type: 'LOGIN_START' });
     
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        console.error('Login error:', error);
-        dispatch({ type: 'LOGIN_FAILURE' });
-        return false;
-      }
-
-      if (data.user) {
-        dispatch({ type: 'LOGIN_SUCCESS', payload: mapSupabaseUser(data.user) });
-        return true;
-      }
-
-      dispatch({ type: 'LOGIN_FAILURE' });
-      return false;
-    } catch (error) {
-      console.error('Login error:', error);
-      dispatch({ type: 'LOGIN_FAILURE' });
-      return false;
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const storedUser = findUserByEmail(email);
+    
+    if (storedUser && storedUser.password === password) {
+      const user: User = {
+        id: storedUser.id,
+        email: storedUser.email,
+        username: storedUser.username,
+        avatar: storedUser.avatar
+      };
+      
+      setCurrentUser(user);
+      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+      return true;
     }
+    
+    dispatch({ type: 'LOGIN_FAILURE' });
+    return false;
   };
 
   const signup = async (email: string, password: string, username?: string): Promise<boolean> => {
     dispatch({ type: 'LOGIN_START' });
     
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username: username || email.split('@')[0]
-          }
-        }
-      });
-
-      if (error) {
-        console.error('Signup error:', error);
-        dispatch({ type: 'LOGIN_FAILURE' });
-        return false;
-      }
-
-      if (data.user) {
-        dispatch({ type: 'LOGIN_SUCCESS', payload: mapSupabaseUser(data.user) });
-        return true;
-      }
-
-      dispatch({ type: 'LOGIN_FAILURE' });
-      return false;
-    } catch (error) {
-      console.error('Signup error:', error);
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Check if user already exists
+    const existingUser = findUserByEmail(email);
+    if (existingUser) {
       dispatch({ type: 'LOGIN_FAILURE' });
       return false;
     }
+    
+    // Create new user
+    const newStoredUser: StoredUser = {
+      id: generateId(),
+      email,
+      password,
+      username: username || email.split('@')[0],
+      avatar: `https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150`
+    };
+    
+    saveUser(newStoredUser);
+    
+    const user: User = {
+      id: newStoredUser.id,
+      email: newStoredUser.email,
+      username: newStoredUser.username,
+      avatar: newStoredUser.avatar
+    };
+    
+    setCurrentUser(user);
+    dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+    return true;
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
+  const logout = () => {
+    setCurrentUser(null);
     dispatch({ type: 'LOGOUT' });
   };
 
