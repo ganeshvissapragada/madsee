@@ -200,7 +200,10 @@ const Auth: React.FC<AuthProps> = ({ onNavigate }) => {
           {!isSignup && (
             <div className="mt-4 p-4 bg-blue-500/20 border border-blue-500/30 rounded-xl">
               <p className="text-blue-300 text-sm text-center">
-                <strong>New to BlogSphere?</strong> Create an account to start writing your own blogs!
+                <strong>Demo Users:</strong><br />
+                Try: user1@demo.com / password123<br />
+                Or: user2@demo.com / password123<br />
+                Or create your own account!
               </p>
             </div>
           )}

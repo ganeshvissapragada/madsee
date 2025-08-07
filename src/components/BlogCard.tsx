@@ -71,15 +71,15 @@ const BlogCard: React.FC<BlogCardProps> = ({ blog }) => {
           {/* Author and Date */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
-              {user?.avatar && (
+              {blog.author?.avatar && (
                 <img
-                  src={user.avatar}
-                  alt={user.username || 'User'}
+                  src={blog.author.avatar}
+                  alt={blog.author.username || 'User'}
                   className="w-8 h-8 rounded-full border-2 border-white/20"
                 />
               )}
               <div>
-                <p className="text-white text-sm font-medium">{user?.username || 'You'}</p>
+                <p className="text-white text-sm font-medium">{blog.author?.username || 'Anonymous'}</p>
                 <div className="flex items-center text-gray-400 text-xs space-x-2">
                   <Calendar size={12} />
                   <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
