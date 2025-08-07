@@ -10,7 +10,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const { user, logout } = useAuth();
-  const { isInstallable, installApp, requestNotificationPermission } = usePWA();
+  const { isInstallable, isOnline, installApp, requestNotificationPermission } = usePWA();
 
   const handleInstallClick = async () => {
     await installApp();
@@ -57,6 +57,16 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* Online/Offline Indicator */}
+            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-xs ${
+              isOnline 
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'}`} />
+              <span>{isOnline ? 'Online' : 'Offline'}</span>
+            </div>
+
             {isInstallable && (
               <button
                 onClick={handleInstallClick}

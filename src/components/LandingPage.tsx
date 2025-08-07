@@ -1,15 +1,28 @@
 import React from 'react';
-import { Sparkles, Zap, Shield, Smartphone } from 'lucide-react';
+import { Sparkles, Zap, Shield, Smartphone, Wifi, WifiOff } from 'lucide-react';
+import { usePWA } from '../hooks/usePWA';
 
 interface LandingPageProps {
   onNavigate: (page: string) => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+  const { isOnline } = usePWA();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+      {/* Offline Banner */}
+      {!isOnline && (
+        <div className="fixed top-16 left-0 right-0 z-40 bg-amber-500/20 backdrop-blur-sm border-b border-amber-500/30 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center justify-center space-x-2 text-amber-300">
+            <WifiOff size={16} />
+            <span className="text-sm font-medium">You're offline - but the app still works!</span>
+          </div>
+        </div>
+      )}
+
       {/* Hero Section */}
-      <section className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <section className={`${!isOnline ? 'pt-32' : 'pt-24'} pb-12 px-4 sm:px-6 lg:px-8`}>
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
             <div className="inline-flex items-center justify-center p-2 bg-indigo-500/20 rounded-full mb-6">
@@ -76,11 +89,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             
             <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-105">
               <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-blue-500 rounded-xl flex items-center justify-center mb-4">
-                <Shield className="w-6 h-6 text-white" />
+                {isOnline ? <Wifi className="w-6 h-6 text-white" /> : <WifiOff className="w-6 h-6 text-white" />}
               </div>
               <h3 className="text-xl font-semibold text-white mb-2">Offline Support</h3>
               <p className="text-gray-300">
-                Read and write blogs even when you're offline. Your data syncs automatically when back online.
+                Read and write blogs even when you're offline. Everything is cached locally for instant access.
               </p>
             </div>
             

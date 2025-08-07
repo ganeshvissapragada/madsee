@@ -4,6 +4,8 @@ export const usePWA = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [cacheStatus, setCacheStatus] = useState<string[]>([]);
 
   useEffect(() => {
     // Check if app is already installed
@@ -16,11 +18,30 @@ export const usePWA = () => {
       navigator.serviceWorker.register('/sw.js')
         .then(registration => {
           console.log('SW registered: ', registration);
+          
+          // Listen for service worker updates
+          registration.addEventListener('updatefound', () => {
+            console.log('New service worker version available');
+          });
         })
         .catch(registrationError => {
           console.log('SW registration failed: ', registrationError);
         });
     }
+
+    // Handle online/offline status
+    const handleOnline = () => {
+      console.log('App is online');
+      setIsOnline(true);
+    };
+    
+    const handleOffline = () => {
+      console.log('App is offline');
+      setIsOnline(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     // Handle install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -40,11 +61,32 @@ export const usePWA = () => {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
+  const getCacheStatus = async () => {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      const messageChannel = new MessageChannel();
+      
+      return new Promise((resolve) => {
+        messageChannel.port1.onmessage = (event) => {
+          if (event.data.type === 'CACHE_STATUS') {
+            setCacheStatus(event.data.caches);
+            resolve(event.data);
+          }
+        };
+        
+        navigator.serviceWorker.controller.postMessage(
+          { type: 'GET_CACHE_STATUS' },
+          [messageChannel.port2]
+        );
+      });
+    }
+  };
   const installApp = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -66,7 +108,10 @@ export const usePWA = () => {
   return {
     isInstallable,
     isInstalled,
+    isOnline,
+    cacheStatus,
     installApp,
-    requestNotificationPermission
+    requestNotificationPermission,
+    getCacheStatus
   };
 };
